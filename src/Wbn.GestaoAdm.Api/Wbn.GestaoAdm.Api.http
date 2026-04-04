@@ -1,0 +1,6 @@
+@Wbn.GestaoAdm.Api_HostAddress = http://localhost:5228
+
+GET {{Wbn.GestaoAdm.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
