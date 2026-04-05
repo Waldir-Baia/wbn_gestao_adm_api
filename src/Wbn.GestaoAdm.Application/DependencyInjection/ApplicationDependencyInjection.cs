@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Wbn.GestaoAdm.Application.Modules.Empresas.Interfaces;
+using Wbn.GestaoAdm.Application.Modules.Empresas.Services;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Interfaces;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Services;
 
@@ -8,6 +10,7 @@ public static class ApplicationDependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<IEmpresaAppService, EmpresaAppService>();
         services.AddScoped<IUsuarioAppService, UsuarioAppService>();
 
         return services;

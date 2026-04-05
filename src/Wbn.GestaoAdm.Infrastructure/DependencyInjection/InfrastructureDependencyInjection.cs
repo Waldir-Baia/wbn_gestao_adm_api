@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Wbn.GestaoAdm.Domain.Modules.Empresas.Repositories;
 using Wbn.GestaoAdm.Domain.Modules.Perfis.Repositories;
 using Wbn.GestaoAdm.Domain.Modules.Usuarios.Repositories;
 using Wbn.GestaoAdm.Infrastructure.Persistence.Contexts;
+using Wbn.GestaoAdm.Infrastructure.Persistence.Repositories.Empresas;
 using Wbn.GestaoAdm.Infrastructure.Persistence.Repositories.Perfis;
 using Wbn.GestaoAdm.Infrastructure.Persistence.Repositories.Usuarios;
 
@@ -20,6 +22,7 @@ public static class InfrastructureDependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
+        services.AddScoped<IEmpresaRepository, EmpresaRepository>();
         services.AddScoped<IPerfilRepository, PerfilRepository>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 
