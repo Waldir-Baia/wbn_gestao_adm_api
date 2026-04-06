@@ -9,7 +9,7 @@ public sealed class EmpresaAppService(IEmpresaRepository empresaRepository) : IE
 {
     public async Task<IReadOnlyCollection<EmpresaLookupResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var empresas = await empresaRepository.GetAll();
+        var empresas = await empresaRepository.GetAll(cancellationToken);
 
         return empresas
             .OrderBy(empresa => empresa.NomeFantasia)

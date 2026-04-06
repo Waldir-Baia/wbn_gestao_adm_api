@@ -12,20 +12,20 @@ public sealed class UsuarioAppService(
 {
     public async Task<UsuarioResponse?> GetByIdAsync(ulong id, CancellationToken cancellationToken = default)
     {
-        var usuario = await usuarioRepository.Get(id);
+        var usuario = await usuarioRepository.Get(id, cancellationToken);
         return usuario is null ? null : MapToResponse(usuario);
     }
 
     public async Task<IReadOnlyCollection<UsuarioResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var usuarios = await usuarioRepository.GetAll();
+        var usuarios = await usuarioRepository.GetAll(cancellationToken);
         return usuarios.Select(MapToResponse).ToArray();
     }
 
     public async Task<UsuarioResponse> CreateAsync(CreateUsuarioRequest request, CancellationToken cancellationToken = default)
     {
-        await EnsurePerfilExistsAsync(request.PerfilId);
-        await EnsureUniqueFieldsAsync(request.Email, request.Login);
+        await EnsurePerfilExistsAsync(request.PerfilId, cancellationToken);
+        await EnsureUniqueFieldsAsync(request.Email, request.Login, null, cancellationToken);
 
         var usuario = new Usuario(
             request.PerfilId,
@@ -40,22 +40,22 @@ public sealed class UsuarioAppService(
             throw new InvalidOperationException(string.Join(" ", usuario.Errors));
         }
 
-        await usuarioRepository.Create(usuario);
+        await usuarioRepository.Create(usuario, cancellationToken);
 
         return MapToResponse(usuario);
     }
 
     public async Task<UsuarioResponse?> UpdateAsync(ulong id, UpdateUsuarioRequest request, CancellationToken cancellationToken = default)
     {
-        var usuario = await usuarioRepository.Get(id);
+        var usuario = await usuarioRepository.Get(id, cancellationToken);
 
         if (usuario is null)
         {
             return null;
         }
 
-        await EnsurePerfilExistsAsync(request.PerfilId);
-        await EnsureUniqueFieldsAsync(request.Email, request.Login, usuario.Id);
+        await EnsurePerfilExistsAsync(request.PerfilId, cancellationToken);
+        await EnsureUniqueFieldsAsync(request.Email, request.Login, usuario.Id, cancellationToken);
 
         usuario.Atualizar(
             request.PerfilId,
@@ -71,42 +71,46 @@ public sealed class UsuarioAppService(
             throw new InvalidOperationException(string.Join(" ", usuario.Errors));
         }
 
-        await usuarioRepository.Update(usuario);
+        await usuarioRepository.Update(usuario, cancellationToken);
 
         return MapToResponse(usuario);
     }
 
     public async Task<bool> DeleteAsync(ulong id, CancellationToken cancellationToken = default)
     {
-        var usuario = await usuarioRepository.Get(id);
+        var usuario = await usuarioRepository.Get(id, cancellationToken);
 
         if (usuario is null)
         {
             return false;
         }
 
-        await usuarioRepository.Remove(id);
+        await usuarioRepository.Remove(id, cancellationToken);
         return true;
     }
 
-    private async Task EnsurePerfilExistsAsync(ulong perfilId)
+    private async Task EnsurePerfilExistsAsync(ulong perfilId, CancellationToken cancellationToken)
     {
-        if (!await perfilRepository.RecordExists(perfilId))
+        if (!await perfilRepository.RecordExists(perfilId, cancellationToken))
         {
             throw new InvalidOperationException("O perfil informado nao existe.");
         }
     }
 
-    private async Task EnsureUniqueFieldsAsync(string email, string login, ulong? usuarioId = null)
+    private async Task EnsureUniqueFieldsAsync(
+        string email,
+        string login,
+        ulong? usuarioId = null,
+        CancellationToken cancellationToken = default)
     {
-        var usuarioComMesmoEmail = await usuarioRepository.GetByEmailAsync(email);
+        var usuarioComMesmoEmail = await usuarioRepository.GetByEmailAsync(email, cancellationToken);
 
         if (usuarioComMesmoEmail is not null && usuarioComMesmoEmail.Id != usuarioId)
         {
             throw new InvalidOperationException("Ja existe um usuario cadastrado com este e-mail.");
         }
 
-        var usuarioComMesmoLogin = await usuarioRepository.GetByLoginAsync(login);
+        var usuarioComMesmoLogin = await usuarioRepository.GetByLoginAsync(login, cancellationToken);
 
         if (usuarioComMesmoLogin is not null && usuarioComMesmoLogin.Id != usuarioId)
         {

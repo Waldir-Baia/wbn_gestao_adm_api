@@ -15,6 +15,16 @@ public class BaseRepository<T>(
     IConfiguration configuration,
     IHttpContextAccessor accessor) : IBaseRepository<T> where T : BaseEntity
 {
+    private static readonly Type[] CollectionTypes =
+    [
+        typeof(List<>),
+        typeof(ICollection<>),
+        typeof(IEnumerable<>),
+        typeof(IReadOnlyCollection<>),
+        typeof(IReadOnlyList<>),
+        typeof(HashSet<>)
+    ];
+
     protected AppDbContext Context { get; } = context;
     protected DbSet<T> DbSet { get; } = context.Set<T>();
     protected IConfiguration Configuration { get; } = configuration;
@@ -25,24 +35,26 @@ public class BaseRepository<T>(
     private string VersaoApi => Configuration.GetValue<string>("DadosProjeto:VersaoApi") ?? "1.0.0";
     private string VersaoFrontEnd => Configuration.GetValue<string>("DadosProjeto:VersaoFrontEnd") ?? "1.0.0";
 
-    public virtual async Task<T> Create(T obj)
+    public virtual async Task<T> Create(T obj, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+
         var executionStrategy = Context.Database.CreateExecutionStrategy();
 
         await executionStrategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await Context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                await DbSet.AddAsync(obj);
-                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente());
-                await Context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await DbSet.AddAsync(obj, cancellationToken);
+                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente(), cancellationToken);
+                await Context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
         });
@@ -50,24 +62,26 @@ public class BaseRepository<T>(
         return obj;
     }
 
-    public virtual async Task<List<T>> CreateRange(List<T> obj)
+    public virtual async Task<List<T>> CreateRange(List<T> obj, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+
         var executionStrategy = Context.Database.CreateExecutionStrategy();
 
         await executionStrategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await Context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                await DbSet.AddRangeAsync(obj);
-                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente());
-                await Context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await DbSet.AddRangeAsync(obj, cancellationToken);
+                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente(), cancellationToken);
+                await Context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
         });
@@ -75,24 +89,26 @@ public class BaseRepository<T>(
         return obj;
     }
 
-    public virtual async Task<List<T>> UpdateRange(List<T> obj)
+    public virtual async Task<List<T>> UpdateRange(List<T> obj, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+
         var executionStrategy = Context.Database.CreateExecutionStrategy();
 
         await executionStrategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await Context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 DbSet.UpdateRange(obj);
-                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente());
-                await Context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente(), cancellationToken);
+                await Context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
         });
@@ -100,76 +116,57 @@ public class BaseRepository<T>(
         return obj;
     }
 
-    public virtual async Task<T> Update(T obj)
+    public virtual async Task<T> Update(T obj, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(obj);
+
         var executionStrategy = Context.Database.CreateExecutionStrategy();
 
         await executionStrategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await Context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 Context.Entry(obj).State = EntityState.Modified;
-                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente());
+                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente(), cancellationToken);
 
-                foreach (var prop in obj.GetType().GetProperties())
+                foreach (var property in GetEntityCollectionProperties(obj.GetType()))
                 {
-                    if (!prop.PropertyType.IsGenericType)
+                    if (property.GetValue(obj) is not System.Collections.IEnumerable items)
                     {
                         continue;
                     }
 
-                    var genericTypeDefinition = prop.PropertyType.GetGenericTypeDefinition();
-                    var isCollection = genericTypeDefinition == typeof(List<>)
-                        || genericTypeDefinition == typeof(ICollection<>)
-                        || genericTypeDefinition == typeof(IEnumerable<>);
-
-                    if (!isCollection)
-                    {
-                        continue;
-                    }
-
-                    var itemType = prop.PropertyType.GetGenericArguments()[0];
-
-                    if (!typeof(BaseEntity).IsAssignableFrom(itemType))
-                    {
-                        continue;
-                    }
-
-                    if (prop.GetValue(obj) is not System.Collections.IEnumerable list)
-                    {
-                        continue;
-                    }
-
-                    foreach (var item in list)
+                    foreach (var item in items)
                     {
                         if (item is not BaseEntity entity)
                         {
                             continue;
                         }
 
-                        if (entity.Id == 0 && !entity.Deletado)
-                        {
-                            Context.Add(entity);
-                        }
-                        else if (entity.Id > 0 && !entity.Deletado)
-                        {
-                            Context.Entry(entity).State = EntityState.Modified;
-                        }
-                        else if (entity.Deletado)
+                        if (entity.Deletado)
                         {
                             Context.Remove(entity);
+                            continue;
                         }
+
+                        if (entity.Id == 0)
+                        {
+                            Context.Add(entity);
+                            continue;
+                        }
+
+                        Context.Entry(entity).State = EntityState.Modified;
                     }
                 }
 
-                await Context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await Context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
         });
@@ -177,9 +174,9 @@ public class BaseRepository<T>(
         return obj;
     }
 
-    public virtual async Task Remove(ulong id)
+    public virtual async Task Remove(ulong id, CancellationToken cancellationToken = default)
     {
-        var obj = await Get(id);
+        var obj = await Get(id, cancellationToken);
 
         if (obj is null)
         {
@@ -190,46 +187,52 @@ public class BaseRepository<T>(
 
         await executionStrategy.ExecuteAsync(async () =>
         {
-            await using var transaction = await Context.Database.BeginTransactionAsync();
+            await using var transaction = await Context.Database.BeginTransactionAsync(cancellationToken);
 
             try
             {
                 DbSet.Remove(obj);
-                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente());
-                await Context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente(), cancellationToken);
+                await Context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
         });
     }
 
-    public virtual async Task<T?> Get(ulong id)
+    public virtual async Task<T?> Get(ulong id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        return await DbSet.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
-    public virtual async Task<List<T>> GetAll()
+    public virtual async Task<List<T>> GetAll(CancellationToken cancellationToken = default)
     {
-        return await DbSet.AsNoTracking().ToListAsync();
+        return await DbSet.AsNoTracking().ToListAsync(cancellationToken);
     }
 
-    public virtual async Task<List<T>> GetAll(Expression<Func<T, bool>> predicate)
+    public virtual async Task<List<T>> GetAll(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
     {
-        return await DbSet.AsNoTracking().Where(predicate).ToListAsync();
+        ArgumentNullException.ThrowIfNull(predicate);
+        return await DbSet.AsNoTracking().Where(predicate).ToListAsync(cancellationToken);
     }
 
-    public virtual async Task<bool> RecordExists(ulong id)
+    public virtual async Task<bool> RecordExists(ulong id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.AnyAsync(x => x.Id == id);
+        return await DbSet.AnyAsync(x => x.Id == id, cancellationToken);
     }
 
-    public virtual Task UpdateCampo(T obj, ulong id)
+    protected virtual IEnumerable<System.Reflection.PropertyInfo> GetEntityCollectionProperties(Type entityType)
     {
-        throw new NotImplementedException();
+        return entityType
+            .GetProperties()
+            .Where(property =>
+                property.PropertyType.IsGenericType
+                && CollectionTypes.Contains(property.PropertyType.GetGenericTypeDefinition())
+                && typeof(BaseEntity).IsAssignableFrom(property.PropertyType.GetGenericArguments()[0]));
     }
 
     protected virtual long RetornaIdUsuarioLogado()

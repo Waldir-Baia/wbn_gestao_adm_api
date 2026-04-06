@@ -5,14 +5,13 @@ namespace Wbn.GestaoAdm.Domain.Common.Repositories;
 
 public interface IBaseRepository<T> where T : BaseEntity
 {
-    Task<T> Create(T obj);
-    Task<List<T>> CreateRange(List<T> obj);
-    Task<List<T>> UpdateRange(List<T> obj);
-    Task<T> Update(T obj);
-    Task Remove(ulong id);
-    Task<T?> Get(ulong id);
-    Task<List<T>> GetAll();
-    Task<List<T>> GetAll(Expression<Func<T, bool>> predicate);
-    Task<bool> RecordExists(ulong id);
-    Task UpdateCampo(T obj, ulong id);
+    Task<T> Create(T obj, CancellationToken cancellationToken = default);
+    Task<List<T>> CreateRange(List<T> obj, CancellationToken cancellationToken = default);
+    Task<List<T>> UpdateRange(List<T> obj, CancellationToken cancellationToken = default);
+    Task<T> Update(T obj, CancellationToken cancellationToken = default);
+    Task Remove(ulong id, CancellationToken cancellationToken = default);
+    Task<T?> Get(ulong id, CancellationToken cancellationToken = default);
+    Task<List<T>> GetAll(CancellationToken cancellationToken = default);
+    Task<List<T>> GetAll(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default);
+    Task<bool> RecordExists(ulong id, CancellationToken cancellationToken = default);
 }
