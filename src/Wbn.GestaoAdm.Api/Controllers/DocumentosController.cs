@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wbn.GestaoAdm.Application.Modules.Documentos.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Documentos.Interfaces;
 
 namespace Wbn.GestaoAdm.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public sealed class DocumentosController(IDocumentoAppService documentoAppService) : ControllerBase

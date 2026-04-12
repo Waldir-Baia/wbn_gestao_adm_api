@@ -51,6 +51,7 @@ public sealed class Usuario : AuditableEntity
     public Perfil Perfil { get; private set; } = null!;
 
     public IReadOnlyCollection<UsuarioEmpresa> UsuariosEmpresas => _usuariosEmpresas;
+    public List<UsuarioEmpresa> UsuariosEmpresasInternal => _usuariosEmpresas;
     public IReadOnlyCollection<Recebimento> RecebimentosEnviados => _recebimentosEnviados;
     public IReadOnlyCollection<RecebimentoConferencia> Conferencias => _conferencias;
     public IReadOnlyCollection<RecebimentoDivergencia> DivergenciasRegistradas => _divergenciasRegistradas;

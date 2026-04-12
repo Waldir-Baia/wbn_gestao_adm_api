@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wbn.GestaoAdm.Application.Modules.Divergencias.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Divergencias.Interfaces;
 
 namespace Wbn.GestaoAdm.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public sealed class DivergenciasController(IDivergenciaAppService divergenciaAppService) : ControllerBase

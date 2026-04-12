@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Interfaces;
 
 namespace Wbn.GestaoAdm.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public sealed class UsuariosController(IUsuarioAppService usuarioAppService) : ControllerBase

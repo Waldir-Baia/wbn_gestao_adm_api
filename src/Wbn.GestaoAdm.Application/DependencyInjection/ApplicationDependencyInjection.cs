@@ -1,4 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Wbn.GestaoAdm.Application.Common.Security;
+using Wbn.GestaoAdm.Application.Modules.Auth.Interfaces;
+using Wbn.GestaoAdm.Application.Modules.Auth.Services;
 using Wbn.GestaoAdm.Application.Modules.Cfg.Interfaces;
 using Wbn.GestaoAdm.Application.Modules.Cfg.Services;
 using Wbn.GestaoAdm.Application.Modules.Conferencia.Interfaces;
@@ -20,6 +23,8 @@ public static class ApplicationDependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddScoped<IAuthAppService, AuthAppService>();
         services.AddScoped<ICfgConsultaAppService, CfgConsultaAppService>();
         services.AddScoped<IConferenciaAppService, ConferenciaAppService>();
         services.AddScoped<IDivergenciaAppService, DivergenciaAppService>();

@@ -31,4 +31,22 @@ public sealed class UsuarioRepository(
         return await DbSet.AsNoTracking()
             .FirstOrDefaultAsync(usuario => usuario.Login == normalizedLogin, cancellationToken);
     }
+
+    public async Task<Usuario?> GetByEmailForAuthenticationAsync(string email, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+
+        return await DbSet
+            .Include(usuario => usuario.UsuariosEmpresas)
+            .FirstOrDefaultAsync(usuario => usuario.Email == normalizedEmail, cancellationToken);
+    }
+
+    public async Task<Usuario?> GetByIdForAuthenticationAsync(ulong id, CancellationToken cancellationToken = default)
+    {
+        return await DbSet
+            .Include(usuario => usuario.UsuariosEmpresas)
+            .FirstOrDefaultAsync(usuario => usuario.Id == id, cancellationToken);
+    }
 }

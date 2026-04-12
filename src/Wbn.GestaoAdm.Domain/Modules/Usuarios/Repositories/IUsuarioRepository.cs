@@ -7,4 +7,6 @@ public interface IUsuarioRepository : IBaseRepository<Usuario>
 {
     Task<Usuario?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<Usuario?> GetByLoginAsync(string login, CancellationToken cancellationToken = default);
+    Task<Usuario?> GetByEmailForAuthenticationAsync(string email, CancellationToken cancellationToken = default);
+    Task<Usuario?> GetByIdForAuthenticationAsync(ulong id, CancellationToken cancellationToken = default);
 }

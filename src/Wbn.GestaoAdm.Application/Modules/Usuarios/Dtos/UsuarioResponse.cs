@@ -3,6 +3,7 @@ namespace Wbn.GestaoAdm.Application.Modules.Usuarios.Dtos;
 public sealed record UsuarioResponse(
     ulong Id,
     ulong PerfilId,
+    ulong EmpresaId,
     string Nome,
     string Email,
     string Login,

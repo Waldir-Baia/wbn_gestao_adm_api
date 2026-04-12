@@ -1,38 +1,55 @@
+using Wbn.GestaoAdm.Application.Common.Security;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Interfaces;
+using Wbn.GestaoAdm.Domain.Modules.Empresas.Repositories;
 using Wbn.GestaoAdm.Domain.Modules.Perfis.Repositories;
 using Wbn.GestaoAdm.Domain.Modules.Usuarios.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Usuarios.Repositories;
+using Wbn.GestaoAdm.Domain.Modules.UsuariosEmpresas.Entities;
 
 namespace Wbn.GestaoAdm.Application.Modules.Usuarios.Services;
 
 public sealed class UsuarioAppService(
     IUsuarioRepository usuarioRepository,
-    IPerfilRepository perfilRepository) : IUsuarioAppService
+    IPerfilRepository perfilRepository,
+    IEmpresaRepository empresaRepository,
+    IPasswordHasher passwordHasher) : IUsuarioAppService
 {
     public async Task<UsuarioResponse?> GetByIdAsync(ulong id, CancellationToken cancellationToken = default)
     {
-        var usuario = await usuarioRepository.Get(id, cancellationToken);
+        var usuario = await usuarioRepository.GetByIdForAuthenticationAsync(id, cancellationToken);
         return usuario is null ? null : MapToResponse(usuario);
     }
 
     public async Task<IReadOnlyCollection<UsuarioResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var usuarios = await usuarioRepository.GetAll(cancellationToken);
-        return usuarios.Select(MapToResponse).ToArray();
+        var result = new List<UsuarioResponse>(usuarios.Count);
+
+        foreach (var usuario in usuarios)
+        {
+            var usuarioCompleto = await usuarioRepository.GetByIdForAuthenticationAsync(usuario.Id, cancellationToken);
+            if (usuarioCompleto is not null)
+            {
+                result.Add(MapToResponse(usuarioCompleto));
+            }
+        }
+
+        return result;
     }
 
     public async Task<UsuarioResponse> CreateAsync(CreateUsuarioRequest request, CancellationToken cancellationToken = default)
     {
         await EnsurePerfilExistsAsync(request.PerfilId, cancellationToken);
-        await EnsureUniqueFieldsAsync(request.Email, request.Login, null, cancellationToken);
+        await EnsureEmpresaExistsAsync(request.EmpresaId, cancellationToken);
+        await EnsureUniqueFieldsAsync(request.Email, null, cancellationToken);
 
         var usuario = new Usuario(
             request.PerfilId,
             request.Nome,
             request.Email,
-            request.Login,
-            request.SenhaHash,
+            request.Email,
+            passwordHasher.Hash(request.Senha),
             request.Telefone);
 
         if (!usuario.Validate())
@@ -42,12 +59,15 @@ public sealed class UsuarioAppService(
 
         await usuarioRepository.Create(usuario, cancellationToken);
 
+        usuario.UsuariosEmpresasInternal.Add(new UsuarioEmpresa(usuario.Id, request.EmpresaId));
+        await usuarioRepository.Update(usuario, cancellationToken);
+
         return MapToResponse(usuario);
     }
 
     public async Task<UsuarioResponse?> UpdateAsync(ulong id, UpdateUsuarioRequest request, CancellationToken cancellationToken = default)
     {
-        var usuario = await usuarioRepository.Get(id, cancellationToken);
+        var usuario = await usuarioRepository.GetByIdForAuthenticationAsync(id, cancellationToken);
 
         if (usuario is null)
         {
@@ -55,14 +75,19 @@ public sealed class UsuarioAppService(
         }
 
         await EnsurePerfilExistsAsync(request.PerfilId, cancellationToken);
-        await EnsureUniqueFieldsAsync(request.Email, request.Login, usuario.Id, cancellationToken);
+        await EnsureEmpresaExistsAsync(request.EmpresaId, cancellationToken);
+        await EnsureUniqueFieldsAsync(request.Email, usuario.Id, cancellationToken);
+
+        var senhaHash = string.IsNullOrWhiteSpace(request.Senha)
+            ? usuario.SenhaHash
+            : passwordHasher.Hash(request.Senha);
 
         usuario.Atualizar(
             request.PerfilId,
             request.Nome,
             request.Email,
-            request.Login,
-            request.SenhaHash,
+            request.Email,
+            senhaHash,
             request.Telefone,
             request.Ativo);
 
@@ -71,6 +96,7 @@ public sealed class UsuarioAppService(
             throw new InvalidOperationException(string.Join(" ", usuario.Errors));
         }
 
+        SincronizarEmpresas(usuario, request.EmpresaId);
         await usuarioRepository.Update(usuario, cancellationToken);
 
         return MapToResponse(usuario);
@@ -97,9 +123,16 @@ public sealed class UsuarioAppService(
         }
     }
 
+    private async Task EnsureEmpresaExistsAsync(ulong empresaId, CancellationToken cancellationToken)
+    {
+        if (!await empresaRepository.RecordExists(empresaId, cancellationToken))
+        {
+            throw new InvalidOperationException("A empresa informada nao existe.");
+        }
+    }
+
     private async Task EnsureUniqueFieldsAsync(
         string email,
-        string login,
         ulong? usuarioId = null,
         CancellationToken cancellationToken = default)
     {
@@ -109,20 +142,31 @@ public sealed class UsuarioAppService(
         {
             throw new InvalidOperationException("Ja existe um usuario cadastrado com este e-mail.");
         }
+    }
 
-        var usuarioComMesmoLogin = await usuarioRepository.GetByLoginAsync(login, cancellationToken);
+    private static void SincronizarEmpresas(Usuario usuario, ulong empresaId)
+    {
+        var vinculoAtivo = usuario.UsuariosEmpresasInternal.FirstOrDefault(vinculo => vinculo.EmpresaId == empresaId);
 
-        if (usuarioComMesmoLogin is not null && usuarioComMesmoLogin.Id != usuarioId)
+        foreach (var vinculo in usuario.UsuariosEmpresasInternal)
         {
-            throw new InvalidOperationException("Ja existe um usuario cadastrado com este login.");
+            vinculo.AtualizarStatus(vinculo.EmpresaId == empresaId);
+        }
+
+        if (vinculoAtivo is null)
+        {
+            usuario.UsuariosEmpresasInternal.Add(new UsuarioEmpresa(usuario.Id, empresaId));
         }
     }
 
     private static UsuarioResponse MapToResponse(Usuario usuario)
     {
+        var empresaId = usuario.UsuariosEmpresas.FirstOrDefault(vinculo => vinculo.Ativo)?.EmpresaId ?? 0;
+
         return new UsuarioResponse(
             usuario.Id,
             usuario.PerfilId,
+            empresaId,
             usuario.Nome,
             usuario.Email,
             usuario.Login,

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wbn.GestaoAdm.Application.Modules.Cfg.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Conferencia.Dtos;
@@ -5,6 +6,7 @@ using Wbn.GestaoAdm.Application.Modules.Conferencia.Interfaces;
 
 namespace Wbn.GestaoAdm.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public sealed class ConferenciaController(IConferenciaAppService conferenciaAppService) : ControllerBase

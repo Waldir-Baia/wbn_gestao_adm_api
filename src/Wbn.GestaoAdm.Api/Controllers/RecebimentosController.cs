@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Wbn.GestaoAdm.Application.Modules.Recebimentos.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Recebimentos.Interfaces;
 
 namespace Wbn.GestaoAdm.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public sealed class RecebimentosController(IRecebimentoAppService recebimentoAppService) : ControllerBase
