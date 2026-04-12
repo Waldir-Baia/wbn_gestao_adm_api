@@ -33,6 +33,11 @@ public sealed class TipoDocumento : BaseEntity
         Ativo = ativo;
     }
 
+    public void Inativar()
+    {
+        Ativo = false;
+    }
+
     public override bool Validate()
     {
         ClearErrors();

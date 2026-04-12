@@ -28,7 +28,8 @@ public sealed class RecebimentoConfiguration : BaseEntityConfiguration<Recebimen
 
         builder.Property(recebimento => recebimento.StatusRecebimento)
             .HasColumnName("statusRecebimento")
-            .HasMaxLength(30)
+            .HasColumnType("int")
+            .HasConversion<int>()
             .IsRequired();
 
         builder.Property(recebimento => recebimento.Origem)

@@ -6,4 +6,5 @@ namespace Wbn.GestaoAdm.Domain.Modules.TiposDocumento.Repositories;
 public interface ITipoDocumentoRepository : IBaseRepository<TipoDocumento>
 {
     Task<TipoDocumento?> GetByNomeAsync(string nome, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<TipoDocumento>> GetAllAtivosAsync(CancellationToken cancellationToken = default);
 }

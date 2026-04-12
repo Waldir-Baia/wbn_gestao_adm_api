@@ -26,6 +26,7 @@ public sealed class RecebimentoConferenciaConfiguration : BaseEntityConfiguratio
             .HasMaxLength(30)
             .IsRequired();
 
+
         builder.Property(recebimentoConferencia => recebimentoConferencia.NotaEncontrada)
             .HasColumnName("notaEncontrada")
             .HasColumnType("tinyint(1)")

@@ -1,10 +1,19 @@
 using Wbn.GestaoAdm.Domain.Common.Entities;
+using Wbn.GestaoAdm.Domain.Common.Exceptions;
+using Wbn.GestaoAdm.Domain.Modules.Recebimentos.Constants;
 using Wbn.GestaoAdm.Domain.Modules.Usuarios.Entities;
 
 namespace Wbn.GestaoAdm.Domain.Modules.Recebimentos.Entities;
 
 public sealed class RecebimentoConferencia : BaseEntity
 {
+    private static readonly HashSet<string> AllowedStatuses =
+    [
+        Constants.StatusConferencia.Pendente,
+        Constants.StatusConferencia.Aprovada,
+        Constants.StatusConferencia.Reprovada
+    ];
+
     private RecebimentoConferencia()
     {
     }
@@ -17,21 +26,23 @@ public sealed class RecebimentoConferencia : BaseEntity
         bool boletoEncontrado,
         bool valorConfere,
         bool dataVencimentoConfere,
-        bool documentoConfere,
+        bool documentoLegivel,
         string? observacao,
         DateTime? dataConferencia = null)
     {
         RecebimentoId = recebimentoId;
         UsuarioConferenciaId = usuarioConferenciaId;
-        StatusConferencia = NormalizeRequired(statusConferencia);
+        StatusConferencia = NormalizeStatus(statusConferencia);
         NotaEncontrada = notaEncontrada;
         BoletoEncontrado = boletoEncontrado;
         ValorConfere = valorConfere;
         DataVencimentoConfere = dataVencimentoConfere;
-        DocumentoConfere = documentoConfere;
+        DocumentoConfere = documentoLegivel;
         Observacao = NormalizeOptional(observacao);
         DataConferencia = dataConferencia ?? DateTime.UtcNow;
         DataCadastro = DateTime.UtcNow;
+
+        ValidarConsistenciaResultado();
     }
 
     public ulong RecebimentoId { get; private set; }
@@ -48,6 +59,16 @@ public sealed class RecebimentoConferencia : BaseEntity
 
     public Recebimento Recebimento { get; private set; } = null!;
     public Usuario UsuarioConferencia { get; private set; } = null!;
+
+    public bool PossuiDivergencia()
+    {
+        return !NotaEncontrada
+            || !BoletoEncontrado
+            || !ValorConfere
+            || !DataVencimentoConfere
+            || !DocumentoConfere
+            || string.Equals(StatusConferencia, Constants.StatusConferencia.Reprovada, StringComparison.OrdinalIgnoreCase);
+    }
 
     public override bool Validate()
     {
@@ -67,14 +88,38 @@ public sealed class RecebimentoConferencia : BaseEntity
         {
             AddError("O status da conferencia e obrigatorio.");
         }
+        else if (!AllowedStatuses.Contains(StatusConferencia))
+        {
+            AddError("O status da conferencia informado e invalido.");
+        }
 
         return !HasErrors;
     }
 
-    private static string NormalizeRequired(string value)
+    private void ValidarConsistenciaResultado()
+    {
+        var possuiDivergencia = PossuiDivergencia();
+
+        if (string.Equals(StatusConferencia, Constants.StatusConferencia.Aprovada, StringComparison.OrdinalIgnoreCase) && possuiDivergencia)
+        {
+            throw new RegraDeNegocioException("Uma conferência aprovada exige todos os indicadores como verdadeiros.");
+        }
+
+        if (string.Equals(StatusConferencia, Constants.StatusConferencia.Reprovada, StringComparison.OrdinalIgnoreCase) && !possuiDivergencia)
+        {
+            throw new RegraDeNegocioException("Uma conferência reprovada exige ao menos uma divergência informada.");
+        }
+
+        if (string.Equals(StatusConferencia, Constants.StatusConferencia.Pendente, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new RegraDeNegocioException("Nao e permitido finalizar a conferência com status pendente.");
+        }
+    }
+
+    private static string NormalizeStatus(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
-        return value.Trim();
+        return value.Trim().ToUpperInvariant();
     }
 
     private static string? NormalizeOptional(string? value)

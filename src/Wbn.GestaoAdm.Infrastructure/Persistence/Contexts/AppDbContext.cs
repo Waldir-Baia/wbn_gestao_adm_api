@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Wbn.GestaoAdm.Domain.Modules.Cfg.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Empresas.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Perfis.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Recebimentos.Entities;
@@ -10,6 +11,8 @@ namespace Wbn.GestaoAdm.Infrastructure.Persistence.Contexts;
 
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<CfgConsulta> CfgConsultas => Set<CfgConsulta>();
+    public DbSet<SubCfgCampo> SubCfgCampos => Set<SubCfgCampo>();
     public DbSet<Perfil> Perfis => Set<Perfil>();
     public DbSet<Empresa> Empresas => Set<Empresa>();
     public DbSet<TipoDocumento> TiposDocumento => Set<TipoDocumento>();

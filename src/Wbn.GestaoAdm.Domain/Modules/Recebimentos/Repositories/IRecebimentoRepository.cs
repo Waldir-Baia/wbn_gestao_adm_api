@@ -6,4 +6,5 @@ namespace Wbn.GestaoAdm.Domain.Modules.Recebimentos.Repositories;
 public interface IRecebimentoRepository : IBaseRepository<Recebimento>
 {
     Task<Recebimento?> GetByCodigoRecebimentoAsync(string codigoRecebimento, CancellationToken cancellationToken = default);
+    Task<Recebimento?> GetDetailsByIdAsync(ulong id, CancellationToken cancellationToken = default);
 }

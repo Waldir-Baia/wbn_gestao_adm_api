@@ -34,6 +34,16 @@ public sealed class Arquivo : BaseEntity
         DataUpload = DateTime.UtcNow;
     }
 
+    public void Inativar()
+    {
+        if (!Ativo)
+        {
+            return;
+        }
+
+        Ativo = false;
+    }
+
     public ulong RecebimentoId { get; private set; }
     public ulong TipoDocumentoId { get; private set; }
     public string NomeOriginal { get; private set; } = string.Empty;

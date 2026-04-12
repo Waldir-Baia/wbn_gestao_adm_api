@@ -31,6 +31,12 @@ public sealed class RecebimentoDivergenciaConfiguration : BaseEntityConfiguratio
             .HasColumnType("text")
             .IsRequired();
 
+        builder.Property(recebimentoDivergencia => recebimentoDivergencia.StatusDivergencia)
+            .HasColumnName("statusDivergencia")
+            .HasColumnType("int")
+            .HasConversion<int>()
+            .IsRequired();
+
         builder.Property(recebimentoDivergencia => recebimentoDivergencia.Resolvida)
             .HasColumnName("resolvida")
             .HasColumnType("tinyint(1)")
