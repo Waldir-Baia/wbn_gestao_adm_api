@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using Wbn.GestaoAdm.Domain.Common.Entities;
+using Wbn.GestaoAdm.Domain.Modules.Nfe.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Recebimentos.Entities;
 using Wbn.GestaoAdm.Domain.Modules.UsuariosEmpresas.Entities;
 
@@ -9,6 +10,7 @@ public sealed class Empresa : AuditableEntity
 {
     private readonly List<UsuarioEmpresa> _usuariosEmpresas = [];
     private readonly List<Recebimento> _recebimentos = [];
+    private readonly List<NfeDocumento> _nfeDocumentos = [];
 
     private Empresa()
     {
@@ -41,8 +43,41 @@ public sealed class Empresa : AuditableEntity
     public string? Telefone { get; private set; }
     public bool Ativo { get; private set; }
 
+    public byte[]? CertificadoDigitalA1 { get; private set; }
+    public string? CertificadoDigitalSenha { get; private set; }
+    public DateTime? CertificadoDigitalValidade { get; private set; }
+    public bool CertificadoDigitalAtivo { get; private set; }
+    public int NfeCodigoUf { get; private set; }
+    public long NfeUltimoNsu { get; private set; }
+    public long NfeMaxNsu { get; private set; }
+    public DateTime? NfeDataUltimaConsulta { get; private set; }
+
     public IReadOnlyCollection<UsuarioEmpresa> UsuariosEmpresas => _usuariosEmpresas;
     public IReadOnlyCollection<Recebimento> Recebimentos => _recebimentos;
+    public IReadOnlyCollection<NfeDocumento> NfeDocumentos => _nfeDocumentos;
+
+    public void AtualizarCertificadoDigital(
+        byte[] certificadoA1,
+        string senhaCriptografada,
+        DateTime validade,
+        int codigoUf,
+        bool ativo = true)
+    {
+        CertificadoDigitalA1 = certificadoA1;
+        CertificadoDigitalSenha = senhaCriptografada;
+        CertificadoDigitalValidade = validade;
+        NfeCodigoUf = codigoUf;
+        CertificadoDigitalAtivo = ativo;
+        DefinirDataAtualizacao();
+    }
+
+    public void AtualizarNsu(long ultimoNsu, long maxNsu)
+    {
+        NfeUltimoNsu = ultimoNsu;
+        NfeMaxNsu = maxNsu;
+        NfeDataUltimaConsulta = DateTime.UtcNow;
+        DefinirDataAtualizacao();
+    }
 
     public void Atualizar(
         string nomeFantasia,

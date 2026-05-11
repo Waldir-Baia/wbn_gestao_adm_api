@@ -12,6 +12,14 @@ using Wbn.GestaoAdm.Application.Modules.Documentos.Interfaces;
 using Wbn.GestaoAdm.Application.Modules.Documentos.Services;
 using Wbn.GestaoAdm.Application.Modules.Empresas.Interfaces;
 using Wbn.GestaoAdm.Application.Modules.Empresas.Services;
+using Wbn.GestaoAdm.Application.Modules.Mobile.Auth.Interfaces;
+using Wbn.GestaoAdm.Application.Modules.Mobile.Auth.Services;
+using Wbn.GestaoAdm.Application.Modules.Mobile.Empresas.Interfaces;
+using Wbn.GestaoAdm.Application.Modules.Mobile.Empresas.Services;
+using Wbn.GestaoAdm.Application.Modules.Mobile.Recebimentos.Interfaces;
+using Wbn.GestaoAdm.Application.Modules.Mobile.Recebimentos.Services;
+using Wbn.GestaoAdm.Application.Modules.Nfe.Interfaces;
+using Wbn.GestaoAdm.Application.Modules.Nfe.Services;
 using Wbn.GestaoAdm.Application.Modules.Recebimentos.Interfaces;
 using Wbn.GestaoAdm.Application.Modules.Recebimentos.Services;
 using Wbn.GestaoAdm.Application.Modules.Usuarios.Interfaces;
@@ -24,6 +32,8 @@ public static class ApplicationDependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+
+        // Web
         services.AddScoped<IAuthAppService, AuthAppService>();
         services.AddScoped<ICfgConsultaAppService, CfgConsultaAppService>();
         services.AddScoped<IConferenciaAppService, ConferenciaAppService>();
@@ -32,6 +42,12 @@ public static class ApplicationDependencyInjection
         services.AddScoped<IEmpresaAppService, EmpresaAppService>();
         services.AddScoped<IUsuarioAppService, UsuarioAppService>();
         services.AddScoped<IRecebimentoAppService, RecebimentoAppService>();
+        services.AddScoped<INfeAppService, NfeAppService>();
+
+        // Mobile
+        services.AddScoped<IMobileAuthAppService, MobileAuthAppService>();
+        services.AddScoped<IMobileEmpresaAppService, MobileEmpresaAppService>();
+        services.AddScoped<IMobileRecebimentoAppService, MobileRecebimentoAppService>();
 
         return services;
     }

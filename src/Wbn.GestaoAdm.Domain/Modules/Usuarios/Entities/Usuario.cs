@@ -46,6 +46,7 @@ public sealed class Usuario : AuditableEntity
     public string SenhaHash { get; private set; } = string.Empty;
     public string? Telefone { get; private set; }
     public bool Ativo { get; private set; }
+    public int StatusSenha { get; private set; }
     public DateTime? UltimoLogin { get; private set; }
 
     public Perfil Perfil { get; private set; } = null!;

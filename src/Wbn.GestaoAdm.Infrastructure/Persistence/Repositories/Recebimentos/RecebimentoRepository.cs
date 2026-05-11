@@ -31,9 +31,22 @@ public sealed class RecebimentoRepository(
         return await DbSet.AsNoTracking()
             .Include(recebimento => recebimento.Historicos)
             .Include(recebimento => recebimento.Arquivos)
+                .ThenInclude(arquivo => arquivo.TipoDocumento)
             .Include(recebimento => recebimento.NotasFiscais)
             .Include(recebimento => recebimento.Boletos)
             .Include(recebimento => recebimento.Conferencias)
             .FirstOrDefaultAsync(recebimento => recebimento.Id == id, cancellationToken);
+    }
+
+    public async Task<List<Recebimento>> GetByUsuarioEnvioIdAsync(
+        ulong usuarioId,
+        CancellationToken cancellationToken = default)
+    {
+        return await DbSet.AsNoTracking()
+            .Include(recebimento => recebimento.Empresa)
+            .Include(recebimento => recebimento.Arquivos)
+            .Where(recebimento => recebimento.UsuarioEnvioId == usuarioId)
+            .OrderByDescending(recebimento => recebimento.DataEnvio)
+            .ToListAsync(cancellationToken);
     }
 }

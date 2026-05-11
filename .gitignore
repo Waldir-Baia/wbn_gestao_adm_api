@@ -2,6 +2,12 @@
 bin/
 obj/
 
+# Variaveis de ambiente (contem segredos - nao commitar)
+.env
+
+# Configuracoes locais de execucao (contem senhas - nao commitar)
+src/**/Properties/launchSettings.json
+
 # User-specific files
 *.user
 *.suo

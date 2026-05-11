@@ -54,6 +54,46 @@ public sealed class EmpresaConfiguration : BaseEntityConfiguration<Empresa>
             .HasColumnName("dataAtualizacao")
             .HasColumnType("datetime");
 
+        builder.Property(empresa => empresa.CertificadoDigitalA1)
+            .HasColumnName("certificadoDigitalA1")
+            .HasColumnType("longblob");
+
+        builder.Property(empresa => empresa.CertificadoDigitalSenha)
+            .HasColumnName("certificadoDigitalSenha")
+            .HasMaxLength(500);
+
+        builder.Property(empresa => empresa.CertificadoDigitalValidade)
+            .HasColumnName("certificadoDigitalValidade")
+            .HasColumnType("datetime");
+
+        builder.Property(empresa => empresa.CertificadoDigitalAtivo)
+            .HasColumnName("certificadoDigitalAtivo")
+            .HasColumnType("tinyint(1)")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(empresa => empresa.NfeCodigoUf)
+            .HasColumnName("nfeCodigoUf")
+            .HasColumnType("smallint unsigned")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(empresa => empresa.NfeUltimoNsu)
+            .HasColumnName("nfeUltimoNsu")
+            .HasColumnType("bigint")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(empresa => empresa.NfeMaxNsu)
+            .HasColumnName("nfeMaxNsu")
+            .HasColumnType("bigint")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(empresa => empresa.NfeDataUltimaConsulta)
+            .HasColumnName("nfeDataUltimaConsulta")
+            .HasColumnType("datetime");
+
         builder.HasIndex(empresa => empresa.Cnpj)
             .IsUnique();
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wbn.GestaoAdm.Domain.Modules.Cfg.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Empresas.Entities;
+using Wbn.GestaoAdm.Domain.Modules.Nfe.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Perfis.Entities;
 using Wbn.GestaoAdm.Domain.Modules.Recebimentos.Entities;
 using Wbn.GestaoAdm.Domain.Modules.TiposDocumento.Entities;
@@ -27,6 +28,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<RecebimentoDivergencia> RecebimentoDivergencias => Set<RecebimentoDivergencia>();
     public DbSet<RecebimentoHistorico> RecebimentoHistoricos => Set<RecebimentoHistorico>();
     public DbSet<RecebimentoComentario> RecebimentoComentarios => Set<RecebimentoComentario>();
+    public DbSet<NfeDocumento> NfeDocumentos => Set<NfeDocumento>();
+    public DbSet<NfeProduto> NfeProdutos => Set<NfeProduto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

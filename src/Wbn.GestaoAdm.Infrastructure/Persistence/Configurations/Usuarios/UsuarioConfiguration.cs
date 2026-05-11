@@ -46,6 +46,12 @@ public sealed class UsuarioConfiguration : BaseEntityConfiguration<Usuario>
             .HasDefaultValue(true)
             .IsRequired();
 
+        builder.Property(usuario => usuario.StatusSenha)
+            .HasColumnName("statusSenha")
+            .HasColumnType("tinyint")
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(usuario => usuario.UltimoLogin)
             .HasColumnName("ultimoLogin")
             .HasColumnType("datetime");
@@ -58,6 +64,8 @@ public sealed class UsuarioConfiguration : BaseEntityConfiguration<Usuario>
         builder.Property(usuario => usuario.DataAtualizacao)
             .HasColumnName("dataAtualizacao")
             .HasColumnType("datetime");
+
+        builder.Ignore(usuario => usuario.UsuariosEmpresasInternal);
 
         builder.HasOne(usuario => usuario.Perfil)
             .WithMany(perfil => perfil.Usuarios)

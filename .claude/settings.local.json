@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export DB_SERVER=localhost DB_PORT=3306 DB_NAME=wbn_gestao_adm_dev DB_USER=root DB_PASSWORD=Your_password123)",
+      "Bash(dotnet ef *)",
+      "Bash(dotnet tool *)",
+      "Bash(export DB_SERVER=localhost DB_PORT=3306 DB_NAME=wbn_gestao_adm_dev DB_USER=root DB_PASSWORD=Your_password123 JWT_SECRET_KEY=WbnGestaoAdmJwtSecretKey_2026_Development_Min32)",
+      "Bash(xargs grep -l \"CfgConsulta\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Apps\\\\Apis\\\\gestao_adm\\\\wbn_gestao_adm_api\" -Recurse -Directory)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Apps\\\\Apis\\\\gestao_adm\\\\wbn_gestao_adm_api\" -Recurse -Directory | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "PowerShell(head -30)",
+      "Bash(dir \"c:\\\\Apps\\\\Apis\\\\gestao_adm\\\\wbn_gestao_adm_api\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Apps\\\\Apis\\\\gestao_adm\\\\wbn_gestao_adm_front\" -Force)",
+      "Read(//c/Apps/Apis/gestao_adm/wbn_gestao_adm_front/**)",
+      "Read(//c/Apps/Apis/gestao_adm/**)",
+      "Bash(npx tsc *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Apps\\Apis\\gestao_adm\\wbn_gestao_adm_front\\src\\app\\models",
+      "C:\\Apps\\Apis\\gestao_adm\\wbn_gestao_adm_front\\src\\app\\services",
+      "C:\\Apps\\Apis\\gestao_adm\\wbn_gestao_adm_front\\src\\app\\modules\\cadastros\\empresas\\components",
+      "C:\\Apps\\Apis\\gestao_adm\\wbn_gestao_adm_front\\src\\app\\modules\\cadastros\\empresas"
+    ]
+  }
+}

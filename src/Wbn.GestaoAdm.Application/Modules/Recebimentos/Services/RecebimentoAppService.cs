@@ -1,3 +1,5 @@
+using Wbn.GestaoAdm.Application.Modules.Cfg.Dtos;
+using Wbn.GestaoAdm.Application.Modules.Cfg.Interfaces;
 using Wbn.GestaoAdm.Application.Modules.Recebimentos.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Recebimentos.Interfaces;
 using Wbn.GestaoAdm.Domain.Common.Exceptions;
@@ -11,11 +13,27 @@ using Wbn.GestaoAdm.Domain.Modules.Usuarios.Repositories;
 namespace Wbn.GestaoAdm.Application.Modules.Recebimentos.Services;
 
 public sealed class RecebimentoAppService(
+    ICfgConsultaAppService cfgConsultaAppService,
     IRecebimentoRepository recebimentoRepository,
     IRecebimentoHistoricoRepository recebimentoHistoricoRepository,
     IEmpresaRepository empresaRepository,
     IUsuarioRepository usuarioRepository) : IRecebimentoAppService
 {
+    public async Task<CfgResultDto> GetListaAsync(
+        RecebimentosListaRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var cfgRequest = new CfgRequestDataDto(
+            request.Filter,
+            request.FilterCode,
+            request.Page,
+            request.DataCountByPage,
+            request.OrderByField,
+            request.OrderByType);
+
+        return await cfgConsultaAppService.ProcessQueryAsync("recebimentos", cfgRequest, cancellationToken);
+    }
+
     public async Task<RecebimentoResponse?> GetByIdAsync(ulong id, CancellationToken cancellationToken = default)
     {
         var recebimento = await recebimentoRepository.GetDetailsByIdAsync(id, cancellationToken);

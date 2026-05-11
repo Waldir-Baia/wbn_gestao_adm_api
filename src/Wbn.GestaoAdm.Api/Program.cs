@@ -1,16 +1,28 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Wbn.GestaoAdm.Api.Authentication;
 using Wbn.GestaoAdm.Application.DependencyInjection;
 using Wbn.GestaoAdm.Infrastructure.DependencyInjection;
+using Wbn.GestaoAdm.Infrastructure.Persistence.Contexts;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+var jwtSecretKey        = builder.Configuration["JWT_SECRET_KEY"]          ?? throw new InvalidOperationException("A variavel JWT_SECRET_KEY nao foi configurada.");
+var jwtExpirationStr    = builder.Configuration["JWT_EXPIRATION_MINUTES"]  ?? "120";
 
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-    ?? throw new InvalidOperationException("A configuração JWT não foi informada.");
+builder.Services.Configure<JwtOptions>(options =>
+{
+    options.SecretKey           = jwtSecretKey;
+    options.ExpirationInMinutes = int.TryParse(jwtExpirationStr, out var exp) ? exp : 120;
+});
+
+var jwtOptions = new JwtOptions
+{
+    SecretKey           = jwtSecretKey,
+    ExpirationInMinutes = int.TryParse(jwtExpirationStr, out var expiration) ? expiration : 120
+};
 
 var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
 
@@ -38,6 +50,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

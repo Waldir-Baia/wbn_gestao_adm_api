@@ -68,8 +68,8 @@ public sealed class BoletoConfiguration : BaseEntityConfiguration<Boleto>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(boleto => boleto.Arquivo)
-            .WithMany()
-            .HasForeignKey(boleto => boleto.ArquivoId)
+            .WithOne(arquivo => arquivo.Boleto)
+            .HasForeignKey<Boleto>(boleto => boleto.ArquivoId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(boleto => boleto.LinhaDigitavel);

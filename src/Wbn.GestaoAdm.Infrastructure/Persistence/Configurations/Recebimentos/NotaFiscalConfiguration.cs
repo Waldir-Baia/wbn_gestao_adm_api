@@ -72,8 +72,8 @@ public sealed class NotaFiscalConfiguration : BaseEntityConfiguration<NotaFiscal
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(notaFiscal => notaFiscal.Arquivo)
-            .WithMany()
-            .HasForeignKey(notaFiscal => notaFiscal.ArquivoId)
+            .WithOne(arquivo => arquivo.NotaFiscal)
+            .HasForeignKey<NotaFiscal>(notaFiscal => notaFiscal.ArquivoId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(notaFiscal => notaFiscal.ChaveAcesso)

@@ -14,9 +14,17 @@
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "swagger",
-      "applicationUrl": "http://localhost:5228",
+      "applicationUrl": "http://0.0.0.0:5228",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DB_SERVER": "192.168.0.112",
+        "DB_PORT": "3306",
+        "DB_NAME": "wbn_gestao_arquivos",
+        "DB_USER": "wbn",
+        "DB_PASSWORD": "143709Wb$",
+        "JWT_SECRET_KEY": "WbnGestaoAdmJwtSecretKey_2026_Development_Min32",
+        "JWT_EXPIRATION_MINUTES": "120",
+        "STORAGE_PATH": "C:\\Temp\\wbn_uploads"
       }
     },
     "https": {
@@ -26,7 +34,15 @@
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7131;http://localhost:5228",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DB_SERVER": "192.168.0.112",
+        "DB_PORT": "3306",
+        "DB_NAME": "wbn_gestao_arquivos",
+        "DB_USER": "wbn",
+        "DB_PASSWORD": "143709Wb$",
+        "JWT_SECRET_KEY": "WbnGestaoAdmJwtSecretKey_2026_Development_Min32",
+        "JWT_EXPIRATION_MINUTES": "120",
+        "STORAGE_PATH": "C:\\Temp\\wbn_uploads"
       }
     },
     "IIS Express": {
