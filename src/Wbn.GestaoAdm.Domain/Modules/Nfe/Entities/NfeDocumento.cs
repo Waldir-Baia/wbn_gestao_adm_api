@@ -91,6 +91,7 @@ public sealed class NfeDocumento : AuditableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(xmlCompleto);
 
         XmlCompleto = xmlCompleto;
+        TipoDocumento = TipoDocumentoFiscalEnum.NfeCompleta;
         DataDownload = DateTime.UtcNow;
         DefinirDataAtualizacao();
     }

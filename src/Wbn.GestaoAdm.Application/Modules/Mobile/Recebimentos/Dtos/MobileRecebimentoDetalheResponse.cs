@@ -9,8 +9,21 @@ public sealed record MobileRecebimentoDetalheResponse(
     string StatusDescricao,
     string? Observacao,
     DateTime DataEnvio,
+    IReadOnlyCollection<MobileNotaFiscalResponse> NotasFiscais,
     IReadOnlyCollection<MobileDocumentoResponse> Documentos,
     IReadOnlyCollection<MobileHistoricoResponse> Historico);
+
+public sealed record MobileNotaFiscalResponse(
+    ulong Id,
+    string? NumeroNota,
+    string? Serie,
+    string? ChaveAcesso,
+    decimal ValorTotal,
+    DateTime? DataEmissao,
+    DateTime? DataEntrada,
+    string? CpfCnpjEmitente,
+    string? NomeEmitente,
+    string? Observacao);
 
 public sealed record MobileHistoricoResponse(
     string Acao,

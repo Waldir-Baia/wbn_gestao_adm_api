@@ -79,6 +79,15 @@ public sealed class Empresa : AuditableEntity
         DefinirDataAtualizacao();
     }
 
+    // Chamado após manifestação bem-sucedida para sinalizar que a SEFAZ
+    // tem documentos novos (procNFe) prontos para download na próxima sync.
+    // Não altera NfeDataUltimaConsulta para não resetar o cooldown timer.
+    public void SinalizarSyncPendente()
+    {
+        NfeMaxNsu += 1;
+        DefinirDataAtualizacao();
+    }
+
     public void Atualizar(
         string nomeFantasia,
         string razaoSocial,

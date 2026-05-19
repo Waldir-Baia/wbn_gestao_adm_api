@@ -47,6 +47,7 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<IRecebimentoConferenciaRepository, RecebimentoConferenciaRepository>();
         services.AddScoped<IRecebimentoDivergenciaRepository, RecebimentoDivergenciaRepository>();
         services.AddScoped<IRecebimentoHistoricoRepository, RecebimentoHistoricoRepository>();
+        services.AddScoped<INotaFiscalRepository, NotaFiscalRepository>();
         services.AddScoped<INfeDocumentoRepository, NfeDocumentoRepository>();
         services.AddScoped<INfeProdutoRepository, NfeProdutoRepository>();
         services.AddScoped<ISefazNfeClient, SefazNfeClient>();

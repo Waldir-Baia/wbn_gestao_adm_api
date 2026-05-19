@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using Wbn.GestaoAdm.Application.Modules.Nfe.Dtos;
 using Wbn.GestaoAdm.Application.Modules.Nfe.Interfaces;
 using Wbn.GestaoAdm.Domain.Common.Exceptions;
@@ -18,6 +19,17 @@ public sealed class NfeAppService(
     private const string CodigoStatusDocumentosLocalizados = "138";
     private const string CodigoStatusNenhumDocumento = "137";
     private const string CodigoStatusConsumoIndevido = "656";
+    private const string CodigoStatusEventoRegistrado = "135";
+    private const string CodigoStatusEventoRegistradoSemVinculo = "136";
+    private const string CodigoStatusDuplicidadeEvento = "573";
+
+    private static readonly TimeSpan[] IntervalosConsultaXmlAposCiencia =
+    [
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(20),
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromSeconds(40)
+    ];
 
     public async Task AtualizarCertificadoDigitalAsync(
         AtualizarCertificadoDigitalEmpresaRequest request,
@@ -57,6 +69,147 @@ public sealed class NfeAppService(
             request.CertificadoDigitalAtivo);
 
         await empresaRepository.Update(empresa, cancellationToken);
+    }
+
+    public async Task<BuscarNfeResponse> BuscarPorChaveAcessoAsync(
+        BuscarNfeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.ChaveAcesso);
+
+        if (request.ChaveAcesso.Length != 44)
+            throw new RegraDeNegocioException("A chave de acesso deve conter 44 digitos.");
+
+        var empresa = await empresaRepository.Get(request.EmpresaId, cancellationToken)
+            ?? throw new RegraDeNegocioException("Empresa nao encontrada.");
+
+        if (empresa.CertificadoDigitalA1 is null || string.IsNullOrWhiteSpace(empresa.CertificadoDigitalSenha))
+            throw new RegraDeNegocioException("A empresa nao possui certificado digital cadastrado.");
+
+        if (!empresa.CertificadoDigitalAtivo)
+            throw new RegraDeNegocioException("O certificado digital da empresa esta inativo.");
+
+        if (empresa.CertificadoDigitalValidade.HasValue && empresa.CertificadoDigitalValidade.Value < DateTime.UtcNow)
+            throw new RegraDeNegocioException("O certificado digital da empresa esta vencido.");
+
+        var senhaDecriptografada = certificadoDigitalProvider.DescriptografarSenha(empresa.CertificadoDigitalSenha);
+        var certificado = certificadoDigitalProvider.CarregarCertificado(empresa.CertificadoDigitalA1, senhaDecriptografada);
+
+        var documentoLocal = await nfeDocumentoRepository.GetWithProdutosByChaveAcessoAsync(request.ChaveAcesso, cancellationToken);
+        if (documentoLocal is not null)
+        {
+            if (documentoLocal.EmpresaId != empresa.Id)
+                throw new RegraDeNegocioException("Acesso negado. Esta nota nao pertence a empresa informada.");
+
+            if (!string.IsNullOrWhiteSpace(documentoLocal.XmlCompleto) && documentoLocal.Produtos.Any())
+                return MapToBuscarResponse(documentoLocal, documentoLocal.Produtos.Select(MapProdutoToResponse).ToList());
+        }
+
+        // Consulta SEFAZ diretamente pela chave de acesso (consChNFe)
+        var resultado = await sefazNfeClient.ConsultarPorChaveAcessoAsync(
+            certificado, empresa.Cnpj, empresa.NfeCodigoUf, request.ChaveAcesso, cancellationToken);
+
+        if (resultado.CodigoStatus == CodigoStatusConsumoIndevido)
+            throw new RegraDeNegocioException("Consulta rejeitada pela SEFAZ por consumo indevido. Aguarde antes de tentar novamente.");
+
+        if (resultado.Documentos.Count == 0)
+            throw new RegraDeNegocioException(
+                "Nota fiscal nao encontrada na SEFAZ. Verifique se sua empresa e o destinatario desta nota.");
+
+        var docSefaz = resultado.Documentos[0];
+
+        // SEFAZ retornou o XML completo — processa e retorna com produtos
+        if (docSefaz.TipoDocumento == TipoDocumentoFiscalEnum.NfeCompleta)
+        {
+            return await ProcessarXmlCompletoAsync(
+                empresa, request.ChaveAcesso, docSefaz.XmlDescomprimido, cancellationToken);
+        }
+
+        // SEFAZ retornou resumo. Verifica se já demos ciência antes (banco de dados)
+        var notaNoDb = await nfeDocumentoRepository.GetByChaveAcessoAsync(request.ChaveAcesso, cancellationToken);
+
+        var possuiManifestacaoLocal = notaNoDb?.StatusManifestacao
+            is StatusManifestacaoNfeEnum.CienciaOperacao
+            or StatusManifestacaoNfeEnum.ConfirmacaoOperacao
+            or StatusManifestacaoNfeEnum.DesconhecimentoOperacao
+            or StatusManifestacaoNfeEnum.OperacaoNaoRealizada;
+
+        var possuiRetornoSefaz = !string.IsNullOrWhiteSpace(notaNoDb?.RetornoSefaz)
+            || !string.IsNullOrWhiteSpace(notaNoDb?.ProtocoloManifestacao);
+
+        var manifestacaoFinal = notaNoDb?.StatusManifestacao
+            is StatusManifestacaoNfeEnum.ConfirmacaoOperacao
+            or StatusManifestacaoNfeEnum.DesconhecimentoOperacao
+            or StatusManifestacaoNfeEnum.OperacaoNaoRealizada;
+
+        var cienciaJaDada = manifestacaoFinal || (possuiManifestacaoLocal && possuiRetornoSefaz);
+
+        if (!cienciaJaDada)
+        {
+            // Dá ciência pela primeira vez e salva no banco
+            var docResumo = docSefaz;
+            NfeDocumento registro;
+
+            if (notaNoDb is null)
+            {
+                registro = new NfeDocumento(
+                    empresa.Id, request.ChaveAcesso, null,
+                    TipoDocumentoFiscalEnum.ResumoNfe, null,
+                    xmlResumo: docResumo.XmlDescomprimido, xmlCompleto: null);
+
+                if (registro.Validate())
+                {
+                    try { await nfeDocumentoRepository.Create(registro, cancellationToken); }
+                    catch (Exception ex) when (EhDuplicata(ex))
+                    {
+                        registro = await nfeDocumentoRepository.GetByChaveAcessoAsync(request.ChaveAcesso, cancellationToken)
+                            ?? registro;
+                    }
+                }
+            }
+            else
+            {
+                registro = notaNoDb;
+            }
+
+            var resultadoManifestacao = await sefazNfeClient.EnviarManifestacaoAsync(
+                certificado, empresa.Cnpj, empresa.NfeCodigoUf,
+                request.ChaveAcesso, TipoManifestacaoNfeEnum.CienciaOperacao,
+                null, cancellationToken);
+
+            if (!ManifestacaoAceita(resultadoManifestacao))
+            {
+                registro.RegistrarManifestacao(
+                    StatusManifestacaoNfeEnum.Rejeitado,
+                    null,
+                    resultadoManifestacao.XmlRetorno);
+                await nfeDocumentoRepository.Update(registro, cancellationToken);
+
+                throw new RegraDeNegocioException(
+                    $"Manifestacao rejeitada pela SEFAZ: {resultadoManifestacao.CodigoStatus} - {resultadoManifestacao.Motivo}");
+            }
+
+            registro.RegistrarManifestacao(
+                StatusManifestacaoNfeEnum.CienciaOperacao,
+                resultadoManifestacao.Protocolo,
+                resultadoManifestacao.XmlRetorno);
+            await nfeDocumentoRepository.Update(registro, cancellationToken);
+        }
+
+        // Segunda tentativa pela mesma chave após a ciência
+        var xmlCompleto = await AguardarXmlCompletoAposCienciaAsync(
+            certificado,
+            empresa.Cnpj,
+            empresa.NfeCodigoUf,
+            request.ChaveAcesso,
+            cancellationToken);
+
+        if (xmlCompleto is not null)
+            return await ProcessarXmlCompletoAsync(empresa, request.ChaveAcesso, xmlCompleto, cancellationToken);
+
+        // SEFAZ ainda processa — na próxima chamada a ciência não será repetida
+        throw new RegraDeNegocioException(
+            "Ciencia registrada, mas a SEFAZ ainda nao liberou o XML completo. Aguarde alguns minutos e tente novamente.");
     }
 
     public async Task<SincronizarNfeResponse> SincronizarAsync(
@@ -120,7 +273,8 @@ public sealed class NfeAppService(
             Mensagem: mensagem,
             QuantidadeDocumentosProcessados: documentosProcessados,
             UltimoNsu: resultado.UltimoNsu.ToString("D15"),
-            MaxNsu: resultado.MaxNsu.ToString("D15"));
+            MaxNsu: resultado.MaxNsu.ToString("D15"),
+            ProximaConsultaPermitidaEm: DateTime.UtcNow);
     }
 
     public async Task<NfeDocumentoResponse?> GetByChaveAcessoAsync(
@@ -254,6 +408,11 @@ public sealed class NfeAppService(
                 $"Manifestacao rejeitada pela SEFAZ: {resultadoManifestacao.Motivo}");
         }
 
+        // Sinaliza que a SEFAZ tem o procNFe disponível para download.
+        // Isso garante que a próxima sync não seja bloqueada pelo cooldown.
+        empresa.SinalizarSyncPendente();
+        await empresaRepository.Update(empresa, cancellationToken);
+
         return MapToResponse(documento);
     }
 
@@ -310,20 +469,32 @@ public sealed class NfeAppService(
             {
                 var dados = NfeXmlParser.ParsearNfeCompleta(docSefaz.XmlDescomprimido);
                 if (dados is not null)
-                {
                     novoDocumento.AtualizarDadosNota(
-                        dados.CnpjEmitente,
-                        dados.NomeEmitente,
-                        dados.CnpjDestinatario,
-                        dados.NomeDestinatario,
-                        dados.NumeroNota,
-                        dados.Serie,
-                        dados.DataEmissao,
-                        dados.ValorTotal);
-                }
+                        dados.CnpjEmitente, dados.NomeEmitente,
+                        dados.CnpjDestinatario, dados.NomeDestinatario,
+                        dados.NumeroNota, dados.Serie,
+                        dados.DataEmissao, dados.ValorTotal);
+            }
+            else if (isResumo)
+            {
+                var dadosRes = NfeXmlParser.ParsearResumoNfe(docSefaz.XmlDescomprimido);
+                if (dadosRes is not null)
+                    novoDocumento.AtualizarDadosNota(
+                        dadosRes.CnpjEmitente, dadosRes.NomeEmitente,
+                        dadosRes.CnpjDestinatario, null,
+                        null, null, dadosRes.DataEmissao, dadosRes.ValorTotal);
             }
 
-            await nfeDocumentoRepository.Create(novoDocumento, cancellationToken);
+            try
+            {
+                await nfeDocumentoRepository.Create(novoDocumento, cancellationToken);
+            }
+            catch (Exception ex) when (EhDuplicata(ex))
+            {
+                // Documento já foi inserido em sync anterior que falhou antes de atualizar o NSU.
+                // Ignora e avança para o próximo documento da lista.
+                continue;
+            }
 
             if (isNfeCompleta)
             {
@@ -334,6 +505,52 @@ public sealed class NfeAppService(
         }
 
         return processados;
+    }
+
+    private static bool EhDuplicata(Exception ex)
+    {
+        const string marcador = "Duplicate entry";
+        return ex.Message.Contains(marcador, StringComparison.OrdinalIgnoreCase)
+            || ex.InnerException?.Message.Contains(marcador, StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private static bool ManifestacaoAceita(SefazManifestacaoResult resultado)
+    {
+        return resultado.CodigoStatus is CodigoStatusEventoRegistrado
+            or CodigoStatusEventoRegistradoSemVinculo
+            or CodigoStatusDuplicidadeEvento;
+    }
+
+    private async Task<string?> AguardarXmlCompletoAposCienciaAsync(
+        X509Certificate2 certificado,
+        string cnpj,
+        int codigoUf,
+        string chaveAcesso,
+        CancellationToken cancellationToken)
+    {
+        foreach (var intervalo in IntervalosConsultaXmlAposCiencia)
+        {
+            if (intervalo > TimeSpan.Zero)
+                await Task.Delay(intervalo, cancellationToken);
+
+            var resultado = await sefazNfeClient.ConsultarPorChaveAcessoAsync(
+                certificado,
+                cnpj,
+                codigoUf,
+                chaveAcesso,
+                cancellationToken);
+
+            if (resultado.CodigoStatus == CodigoStatusConsumoIndevido)
+                throw new RegraDeNegocioException("Consulta rejeitada pela SEFAZ por consumo indevido. Aguarde antes de tentar novamente.");
+
+            var documentoCompleto = resultado.Documentos
+                .FirstOrDefault(d => d.TipoDocumento == TipoDocumentoFiscalEnum.NfeCompleta);
+
+            if (documentoCompleto is not null)
+                return documentoCompleto.XmlDescomprimido;
+        }
+
+        return null;
     }
 
     private async Task AtualizarDadosEProdutosAsync(
@@ -393,6 +610,95 @@ public sealed class NfeAppService(
     {
         var dados = NfeXmlParser.ParsearNfeCompleta(xml);
         return dados?.ChaveAcesso;
+    }
+
+    private async Task<BuscarNfeResponse> ProcessarXmlCompletoAsync(
+        Domain.Modules.Empresas.Entities.Empresa empresa,
+        string chaveAcesso,
+        string xmlCompleto,
+        CancellationToken cancellationToken)
+    {
+        var dados = NfeXmlParser.ParsearNfeCompleta(xmlCompleto);
+        var docExistente = await nfeDocumentoRepository.GetByChaveAcessoAsync(chaveAcesso, cancellationToken);
+
+        NfeDocumento doc;
+        if (docExistente is not null)
+        {
+            doc = docExistente;
+            doc.SalvarXmlCompleto(xmlCompleto);
+            if (dados is not null)
+                doc.AtualizarDadosNota(
+                    dados.CnpjEmitente, dados.NomeEmitente,
+                    dados.CnpjDestinatario, dados.NomeDestinatario,
+                    dados.NumeroNota, dados.Serie, dados.DataEmissao, dados.ValorTotal);
+            await nfeDocumentoRepository.Update(doc, cancellationToken);
+        }
+        else
+        {
+            doc = new NfeDocumento(
+                empresa.Id, chaveAcesso, null,
+                TipoDocumentoFiscalEnum.NfeCompleta, null,
+                xmlResumo: null, xmlCompleto: xmlCompleto);
+
+            if (dados is not null)
+                doc.AtualizarDadosNota(
+                    dados.CnpjEmitente, dados.NomeEmitente,
+                    dados.CnpjDestinatario, dados.NomeDestinatario,
+                    dados.NumeroNota, dados.Serie, dados.DataEmissao, dados.ValorTotal);
+
+            if (!doc.Validate())
+                throw new RegraDeNegocioException(string.Join(" ", doc.Errors));
+
+            try { await nfeDocumentoRepository.Create(doc, cancellationToken); }
+            catch (Exception ex) when (EhDuplicata(ex))
+            {
+                doc = await nfeDocumentoRepository.GetByChaveAcessoAsync(chaveAcesso, cancellationToken)
+                    ?? doc;
+            }
+        }
+
+        var produtosExistentes = await nfeProdutoRepository.GetByNfeDocumentoIdAsync(doc.Id, cancellationToken);
+        if (produtosExistentes.Count > 0)
+            return MapToBuscarResponse(doc, produtosExistentes.Select(MapProdutoToResponse).ToList());
+
+        var produtosXml = dados?.Produtos ?? [];
+        var produtos = produtosXml.Select(p => new NfeProduto(
+            doc.Id, p.NomeProduto, p.CodigoProduto, null,
+            p.Ncm, p.Cfop, p.Unidade, p.Quantidade, p.ValorUnitario, p.ValorTotal, p.Ean)).ToList();
+
+        if (produtos.Count > 0)
+        {
+            foreach (var prod in produtos.Where(p => !p.Validate()))
+                throw new RegraDeNegocioException(string.Join(" ", prod.Errors));
+
+            try { await nfeProdutoRepository.CreateRange(produtos, cancellationToken); }
+            catch (Exception ex) when (EhDuplicata(ex)) { }
+        }
+
+        return MapToBuscarResponse(doc, produtos.Select(MapProdutoToResponse).ToList());
+    }
+
+    private static BuscarNfeResponse MapToBuscarResponse(NfeDocumento documento, IReadOnlyList<NfeProdutoResponse> produtos)
+    {
+        return new BuscarNfeResponse(
+            documento.Id,
+            documento.EmpresaId,
+            documento.ChaveAcesso,
+            documento.Nsu,
+            documento.TipoDocumento.ToString(),
+            documento.CnpjEmitente,
+            documento.NomeEmitente,
+            documento.CnpjDestinatario,
+            documento.NomeDestinatario,
+            documento.NumeroNota,
+            documento.Serie,
+            documento.DataEmissao,
+            documento.ValorTotal,
+            documento.StatusManifestacao.ToString(),
+            documento.DataDownload,
+            documento.DataCadastro,
+            documento.DataAtualizacao,
+            produtos);
     }
 
     private static NfeDocumentoResponse MapToResponse(NfeDocumento documento)

@@ -30,6 +30,24 @@ public sealed class NfeController(INfeAppService nfeAppService) : ControllerBase
         }
     }
 
+    [HttpPost("buscar")]
+    [ProducesResponseType(typeof(BuscarNfeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<BuscarNfeResponse>> Buscar(
+        [FromBody] BuscarNfeRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var resultado = await nfeAppService.BuscarPorChaveAcessoAsync(request, cancellationToken);
+            return Ok(resultado);
+        }
+        catch (RegraDeNegocioException ex)
+        {
+            return BadRequest(new { mensagem = ex.Message });
+        }
+    }
+
     [HttpPost("sincronizar")]
     [ProducesResponseType(typeof(SincronizarNfeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -45,7 +63,11 @@ public sealed class NfeController(INfeAppService nfeAppService) : ControllerBase
         }
         catch (RegraDeNegocioException ex)
         {
-            return BadRequest(new { mensagem = ex.Message });
+            return BadRequest(new
+            {
+                mensagem = ex.Message,
+                proximaConsultaPermitidaEm = DateTime.UtcNow.AddMinutes(60)
+            });
         }
     }
 

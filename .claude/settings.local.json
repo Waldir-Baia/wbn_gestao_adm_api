@@ -13,7 +13,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Apps\\\\Apis\\\\gestao_adm\\\\wbn_gestao_adm_front\" -Force)",
       "Read(//c/Apps/Apis/gestao_adm/wbn_gestao_adm_front/**)",
       "Read(//c/Apps/Apis/gestao_adm/**)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(ls -la \"C:\\\\Apps\\\\Apis\\\\gestao_adm\\\\\" 2>/dev/null | head -20)",
+      "Read(//c/Apps/Apis/gestao_adm\" 2>/dev/**)"
     ],
     "additionalDirectories": [
       "C:\\Apps\\Apis\\gestao_adm\\wbn_gestao_adm_front\\src\\app\\models",

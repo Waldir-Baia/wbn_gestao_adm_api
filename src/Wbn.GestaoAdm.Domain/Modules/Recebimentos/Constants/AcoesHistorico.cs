@@ -5,6 +5,7 @@ public static class AcoesHistorico
     public const string RecebimentoCriado = "RECEBIMENTO_CRIADO";
     public const string ArquivoAdicionado = "ARQUIVO_ADICIONADO";
     public const string ArquivoInativado = "ARQUIVO_INATIVADO";
+    public const string NotaFiscalVinculada = "NOTA_FISCAL_VINCULADA";
     public const string ConferenciaIniciada = "CONFERENCIA_INICIADA";
     public const string ConferenciaRealizada = "CONFERENCIA_REALIZADA";
     public const string DivergenciaCriada = "DIVERGENCIA_CRIADA";

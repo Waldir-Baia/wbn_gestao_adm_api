@@ -74,6 +74,103 @@ public sealed class MobileRecebimentosController(
         }
     }
 
+    [HttpPost("nfe")]
+    [ProducesResponseType(typeof(MobileRecebimentoDetalheResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<MobileRecebimentoDetalheResponse>> CreateFromNfe(
+        [FromBody] MobileCriarRecebimentoNfeBody body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var usuarioId = ObterUsuarioId();
+            var request = new MobileCreateRecebimentoNfeRequest(
+                body.EmpresaId,
+                usuarioId,
+                body.ChaveAcesso,
+                body.Observacao);
+
+            var recebimento = await recebimentoAppService.CreateFromNfeAsync(request, cancellationToken);
+
+            return CreatedAtAction(
+                nameof(GetDetalhe),
+                new { id = recebimento.Id },
+                recebimento);
+        }
+        catch (RegraDeNegocioException ex) when (ex.Message.Contains("Acesso", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (RegraDeNegocioException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:long}/iniciar-conferencia")]
+    [ProducesResponseType(typeof(MobileRecebimentoDetalheResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MobileRecebimentoDetalheResponse>> IniciarConferencia(
+        ulong id,
+        [FromBody] MobileIniciarConferenciaBody? body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var usuarioId = ObterUsuarioId();
+            var recebimento = await recebimentoAppService.IniciarConferenciaAsync(
+                id,
+                usuarioId,
+                body?.Observacao,
+                cancellationToken);
+
+            return recebimento is null ? NotFound() : Ok(recebimento);
+        }
+        catch (RegraDeNegocioException ex) when (ex.Message.Contains("Acesso", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (RegraDeNegocioException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id:long}/finalizar-conferencia")]
+    [ProducesResponseType(typeof(MobileRecebimentoDetalheResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MobileRecebimentoDetalheResponse>> FinalizarConferencia(
+        ulong id,
+        [FromBody] MobileFinalizarConferenciaBody body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var usuarioId = ObterUsuarioId();
+            var request = new MobileFinalizarConferenciaRequest(body.PossuiDivergencia, body.Observacao);
+            var recebimento = await recebimentoAppService.FinalizarConferenciaAsync(
+                id,
+                usuarioId,
+                request,
+                cancellationToken);
+
+            return recebimento is null ? NotFound() : Ok(recebimento);
+        }
+        catch (RegraDeNegocioException ex) when (ex.Message.Contains("Acesso", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (RegraDeNegocioException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{recebimentoId:long}/documentos")]
     [ProducesResponseType(typeof(MobileDocumentoResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -199,6 +296,12 @@ public sealed class MobileRecebimentosController(
 }
 
 public sealed record MobileCriarRecebimentoBody(ulong EmpresaId, string? Observacao);
+
+public sealed record MobileCriarRecebimentoNfeBody(ulong EmpresaId, string ChaveAcesso, string? Observacao);
+
+public sealed record MobileIniciarConferenciaBody(string? Observacao);
+
+public sealed record MobileFinalizarConferenciaBody(bool PossuiDivergencia, string? Observacao);
 
 public sealed class MobileEnviarDocumentoBody
 {

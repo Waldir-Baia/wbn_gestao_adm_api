@@ -14,6 +14,13 @@ public sealed record NfeProdutoXml(
     decimal? ValorTotal,
     string? Ean);
 
+public sealed record NfeDadosResumo(
+    string? CnpjEmitente,
+    string? NomeEmitente,
+    string? CnpjDestinatario,
+    DateTime? DataEmissao,
+    decimal? ValorTotal);
+
 public sealed record NfeDadosXml(
     string ChaveAcesso,
     string? NumeroNota,
@@ -150,6 +157,40 @@ public static class NfeXmlParser
         {
             return null;
         }
+    }
+
+    public static NfeDadosResumo? ParsearResumoNfe(string xmlResumo)
+    {
+        if (string.IsNullOrWhiteSpace(xmlResumo)) return null;
+
+        XDocument doc;
+        try { doc = XDocument.Parse(xmlResumo); }
+        catch { return null; }
+
+        var resNFe = doc.Descendants(NfeNs + "resNFe").FirstOrDefault()
+                  ?? doc.Descendants("resNFe").FirstOrDefault()
+                  ?? doc.Root;
+
+        if (resNFe is null) return null;
+
+        XElement? El(string local) =>
+            resNFe.Element(NfeNs + local) ?? resNFe.Element(local);
+
+        var cnpjEmitente = El("CNPJ")?.Value;
+        var nomeEmitente = El("xNome")?.Value;
+
+        var dest = resNFe.Element(NfeNs + "dest") ?? resNFe.Element("dest");
+        var cnpjDest = dest?.Element(NfeNs + "CNPJ")?.Value
+                    ?? dest?.Element(NfeNs + "CPF")?.Value
+                    ?? dest?.Element("CNPJ")?.Value
+                    ?? dest?.Element("CPF")?.Value;
+
+        var dhEmi = El("dhEmi")?.Value ?? El("dEmi")?.Value;
+        DateTime? dataEmissao = DateTime.TryParse(dhEmi, out var dt) ? dt : null;
+
+        decimal? valorTotal = ParseDecimal(El("vNF")?.Value);
+
+        return new NfeDadosResumo(cnpjEmitente, nomeEmitente, cnpjDest, dataEmissao, valorTotal);
     }
 
     private static decimal? ParseDecimal(string? value)

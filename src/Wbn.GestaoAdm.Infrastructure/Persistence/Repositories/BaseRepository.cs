@@ -128,6 +128,7 @@ public class BaseRepository<T>(
 
             try
             {
+                DetachTrackedInstance(obj);
                 Context.Entry(obj).State = EntityState.Modified;
                 await Context.Database.ExecuteSqlRawAsync(RetornaVariaveisAmbiente(), cancellationToken);
 
@@ -157,6 +158,7 @@ public class BaseRepository<T>(
                             continue;
                         }
 
+                        DetachTrackedInstance(entity);
                         Context.Entry(entity).State = EntityState.Modified;
                     }
                 }
@@ -172,6 +174,27 @@ public class BaseRepository<T>(
         });
 
         return obj;
+    }
+
+    private void DetachTrackedInstance(BaseEntity entity)
+    {
+        if (entity.Id == 0)
+        {
+            return;
+        }
+
+        var trackedEntry = Context.ChangeTracker
+            .Entries()
+            .FirstOrDefault(entry =>
+                entry.Entity is BaseEntity trackedEntity
+                && trackedEntity.Id == entity.Id
+                && entry.Entity.GetType() == entity.GetType()
+                && !ReferenceEquals(entry.Entity, entity));
+
+        if (trackedEntry is not null)
+        {
+            trackedEntry.State = EntityState.Detached;
+        }
     }
 
     public virtual async Task Remove(ulong id, CancellationToken cancellationToken = default)

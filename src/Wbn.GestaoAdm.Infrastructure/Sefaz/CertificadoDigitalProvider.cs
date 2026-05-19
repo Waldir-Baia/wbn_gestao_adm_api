@@ -22,10 +22,7 @@ public sealed class CertificadoDigitalProvider(IConfiguration configuration) : I
     {
         try
         {
-            return new X509Certificate2(
-                bytes,
-                senhaDecriptografada,
-                X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.MachineKeySet);
+            return new X509Certificate2(bytes, senhaDecriptografada, ResolverFlags());
         }
         catch (Exception ex)
         {
@@ -78,10 +75,7 @@ public sealed class CertificadoDigitalProvider(IConfiguration configuration) : I
         X509Certificate2 certificado;
         try
         {
-            certificado = new X509Certificate2(
-                bytes,
-                senha,
-                X509KeyStorageFlags.EphemeralKeySet | X509KeyStorageFlags.MachineKeySet);
+            certificado = new X509Certificate2(bytes, senha, ResolverFlags());
         }
         catch
         {
@@ -109,6 +103,22 @@ public sealed class CertificadoDigitalProvider(IConfiguration configuration) : I
         }
 
         return (true, null);
+    }
+
+    // No Windows, EphemeralKeySet impede o SSPI de acessar a chave privada no handshake mTLS.
+    // PersistKeySet + MachineKeySet + Exportable garantem que o SChannel consiga usar a chave.
+    // No Linux, EphemeralKeySet é suficiente e evita escrita em disco.
+    private static X509KeyStorageFlags ResolverFlags()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return X509KeyStorageFlags.Exportable
+                 | X509KeyStorageFlags.MachineKeySet
+                 | X509KeyStorageFlags.PersistKeySet;
+        }
+
+        return X509KeyStorageFlags.Exportable
+             | X509KeyStorageFlags.EphemeralKeySet;
     }
 
     private static string? ExtrairCnpjDoCertificado(X509Certificate2 certificado)

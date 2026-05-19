@@ -31,6 +31,18 @@ public interface ISefazNfeClient
         long ultimoNsu,
         CancellationToken cancellationToken = default);
 
+    Task<SefazDistribuicaoResult> ConsultarPorChaveAcessoAsync(
+        X509Certificate2 certificado,
+        string cnpj,
+        int codigoUf,
+        string chaveAcesso,
+        CancellationToken cancellationToken = default);
+
+    Task<string?> ConsultarProtocoloAsync(
+        X509Certificate2 certificado,
+        string chaveAcesso,
+        CancellationToken cancellationToken = default);
+
     Task<SefazManifestacaoResult> EnviarManifestacaoAsync(
         X509Certificate2 certificado,
         string cnpj,

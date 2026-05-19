@@ -5,4 +5,5 @@ public sealed record SincronizarNfeResponse(
     string Mensagem,
     int QuantidadeDocumentosProcessados,
     string UltimoNsu,
-    string MaxNsu);
+    string MaxNsu,
+    DateTime ProximaConsultaPermitidaEm);

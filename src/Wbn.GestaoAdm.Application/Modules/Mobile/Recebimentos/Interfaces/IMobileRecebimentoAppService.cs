@@ -17,6 +17,22 @@ public interface IMobileRecebimentoAppService
         MobileCreateRecebimentoRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<MobileRecebimentoDetalheResponse> CreateFromNfeAsync(
+        MobileCreateRecebimentoNfeRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<MobileRecebimentoDetalheResponse?> IniciarConferenciaAsync(
+        ulong recebimentoId,
+        ulong usuarioId,
+        string? observacao,
+        CancellationToken cancellationToken = default);
+
+    Task<MobileRecebimentoDetalheResponse?> FinalizarConferenciaAsync(
+        ulong recebimentoId,
+        ulong usuarioId,
+        MobileFinalizarConferenciaRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<MobileDocumentoResponse> EnviarDocumentoAsync(
         MobileEnviarDocumentoRequest request,
         CancellationToken cancellationToken = default);
